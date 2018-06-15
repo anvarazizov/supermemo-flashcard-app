@@ -16,7 +16,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var usageStats: AppUsage?
     var timer: Timer!
 
-    func addSecondsToUsageStats()
+    @objc func addSecondsToUsageStats()
     {
         usageStats?.secondsStudied += 1
     }
