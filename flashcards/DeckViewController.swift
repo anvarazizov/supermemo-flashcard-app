@@ -24,7 +24,7 @@ class DeckViewController: UIViewController {
     @IBOutlet weak var cardStack: UIStackView!
     @IBOutlet weak var nothingToSeeLabel: UILabel!
     
-    var deck: Deck!
+    var deck: Deck?
     var cardsSet: Set<Card> = []
     var cardsToShowArray: [Card] = []
     var tomorrowTimestamp: Double = 0.0
@@ -40,8 +40,8 @@ class DeckViewController: UIViewController {
         
         self.title = deck?.name
         
-        let tomorrowDate = calendar.date(byAdding: .day, value: 1, to: Date())
-        tomorrowTimestamp = calendar.startOfDay(for: tomorrowDate!).timeIntervalSince1970
+        guard let tomorrowDate = calendar.date(byAdding: .day, value: 1, to: Date()) else { return }
+        tomorrowTimestamp = calendar.startOfDay(for: tomorrowDate).timeIntervalSince1970
         
         sortDeck()
         showNextCard()
@@ -144,24 +144,28 @@ class DeckViewController: UIViewController {
         showNextCard()
     }
     
-    func sortDeck() -> Void {
+    func sortDeck() {
+        guard let deck = deck else { return }
+        
         let datePredicate = NSPredicate(format: "nextShown < %f", tomorrowTimestamp)
         let filteredDeck = deck.cards?.filtered(using: datePredicate) as NSSet?
         
-        cardsSet = filteredDeck! as! Set<Card>
+        guard let cardsSet = filteredDeck as? Set<Card> else { return }
         
         cardsToShowArray = cardsSet.sorted { $0.updatedDate < $1.updatedDate }
     }
     
     // This function implements the SuperMemo 2 Algorithm. Source: https://www.supermemo.com/english/ol/sm2.htm
-    func updateCard(tag: Int?) -> Void {
-        let now = Date().timeIntervalSince1970
-        let AppDelegate = UIApplication.shared.delegate as! AppDelegate
-        let currentCard = cardsToShowArray.first!
+    func updateCard(tag: Int?) {
+        guard let tag = tag else { return }
+
+        guard let AppDelegate = UIApplication.shared.delegate as? AppDelegate else { return }
+        guard let currentCard = cardsToShowArray.first else { return }
+        
         let currentEasinessFactor = currentCard.easinessFactor
         var newEasinessFactor: Double = 0.0
-        let cardScore = Double(tag!)
-        currentCard.updatedDate = now
+        let cardScore = Double(tag)
+        currentCard.updatedDate = Date().timeIntervalSince1970
         
         if (cardScore < 3.0) {
             currentCard.repetition = 0
@@ -191,14 +195,15 @@ class DeckViewController: UIViewController {
             // Update correctCount in App Usage
             appUsage.correctCount += 1
         }
+        
         appUsage.totalReviews += 1
         // Update nextShown in card Entity
-        let nextShownDate = calendar.date(byAdding: .day, value: Int(currentCard.interval), to: Date())!
+        guard let nextShownDate = calendar.date(byAdding: .day, value: Int(currentCard.interval), to: Date()) else { return }
         currentCard.nextShown = nextShownDate.timeIntervalSince1970
         AppDelegate.saveContext()
     }
     
-    func showNextCard() -> Void {
+    func showNextCard() {
         
         if(cardsToShowArray.count > 0) {
             cardStack.isHidden = false
@@ -215,7 +220,9 @@ class DeckViewController: UIViewController {
             buttonStack.isHidden = true
             nothingToSeeLabel.isHidden = false
             
-            if((deck.cards?.count)! > 0) {
+            guard let cards = deck?.cards else { return }
+            
+            if cards.count > 0 {
                 nothingToSeeLabel.text = "Congratulations, you have finished this deck for now! Check back tomorrow."
             } else {
                 nothingToSeeLabel.text = "You haven't added any cards to this deck yet. Click the edit button and start adding your cards!"
@@ -223,7 +230,7 @@ class DeckViewController: UIViewController {
         }
     }
     
-    func fetchUsageStats() -> Void {
+    func fetchUsageStats() {
         let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
         do {
             appUsage = try context.fetch(AppUsage.fetchRequest()).first
